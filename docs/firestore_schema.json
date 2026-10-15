@@ -1,0 +1,156 @@
+{
+  "usuarios": {
+    "u1": {
+      "nombre": "Admin Usuario",
+      "email": "admin@empresa.com",
+      "avatar_url": "",
+      "fecha_creacion": "2024-01-01T00:00:00Z"
+    },
+    "u2": {
+      "nombre": "Juan Pérez",
+      "email": "juan@empresa.com",
+      "avatar_url": "",
+      "fecha_creacion": "2024-02-15T10:30:00Z"
+    }
+  },
+
+  "proyectos": {
+    "p1": {
+      "nombre": "Cartera Auto",
+      "descripcion": "Gestión de pólizas y siniestros de automóviles",
+      "usuario_creador": "u1",
+      "colaboradores": ["u1", "u2"],
+      "fecha_creacion": "2024-01-01T12:00:00Z"
+    }
+  },
+
+  "tareas": {
+    "t1": {
+      "titulo": "Siniestro Auto - García Márquez",
+      "descripcion": "Golpe alcance trasero. Contrario admite culpa.",
+      "fecha_limite": "2024-11-20T00:00:00Z",
+      "estado": "Pendiente",
+      "prioridad": "Alta",
+      "proyecto_id": "p1",
+      "etiquetas": ["Siniestro", "Urgente", "Auto"],
+      "usuario_creador": "u1",
+      "usuarios_asignados": ["u1"],
+      
+      "recurrente": null,
+      "ultima_ejecucion": null,
+      "mi_dia": "2024-11-20",
+      
+      "tipo_tarea": "Siniestro",
+      "cliente": "Gabriel García",
+      "telefono_cliente": "+34 600 111 222",
+      "n_poliza": "POL-AUTO-8811",
+      "cia_aseguradora": "Mapfre",
+      "ramo": "Auto",
+      "estado_tramite": "Peritaje",
+      "urgente": true,
+
+      "bloqueada_por": ["t2"],
+      "relacionadas_con": ["t3"],
+
+      "campos_personalizados": {
+        "expediente_cia": "EXP-99281",
+        "link_drive_fotos": "https://drive.google.com/...",
+        "modo_contacto_preferido": "Whatsapp"
+      },
+
+      "fecha_creacion": "2024-11-18T09:00:00Z"
+    },
+    "t2": {
+      "titulo": "Recibir Atestado Policial",
+      "estado": "Pendiente",
+      "prioridad": "Alta",
+      "usuario_creador": "u1"
+    }
+  },
+
+  "subtareas": {
+    "s1": {
+      "tarea_id": "t1",
+      "texto": "Solicitar parte amistoso",
+      "completada": true
+    },
+    "s2": {
+      "tarea_id": "t1",
+      "texto": "Confirmar visita perito",
+      "completada": false
+    }
+  },
+
+  "comentarios": {
+    "c1": {
+      "tarea_id": "t1",
+      "autor_id": "u1",
+      "texto": "El cliente indica que tiene fotos del contrario.",
+      "fecha": "2024-11-18T10:00:00Z"
+    }
+  },
+
+  "reglas_usuario": {
+    "r1": {
+      "usuario_id": "u1",
+      "nombre": "Alerta Urgentes sin movimiento",
+      "condicion": {
+        "campo": "prioridad",
+        "operador": "==",
+        "valor": "Alta"
+      },
+      "condicion_extra": {
+        "campo": "fecha_ultima_modificacion",
+        "operador": "<",
+        "valor_dias": 2
+      },
+      "accion": {
+        "tipo": "notificar",
+        "mensaje": "Tienes tareas urgentes sin actualizar"
+      },
+      "activa": true
+    },
+    "r2": {
+      "usuario_id": "u1",
+      "nombre": "Etiquetado automático Renovación",
+      "condicion": {
+        "campo": "tipo_tarea",
+        "operador": "==",
+        "valor": "Renovación"
+      },
+      "accion": {
+        "tipo": "asignar_etiqueta",
+        "valor": "Comercial"
+      },
+      "activa": true
+    }
+  },
+
+  "bitacoras": {
+    "b1": {
+      "tarea_id": "t1",
+      "evento": "Cambio estado trámite: En curso -> Peritaje",
+      "autor_id": "u1",
+      "fecha": "2024-11-19T09:30:00Z"
+    },
+    "b2": {
+      "tarea_id": "t1",
+      "evento": "Tarea creada",
+      "autor_id": "u1",
+      "fecha": "2024-11-18T09:00:00Z"
+    }
+  },
+
+  "vistas_personalizadas": {
+    "v1": {
+      "usuario_id": "u1",
+      "nombre": "Renovaciones DKV Noviembre",
+      "filtros": {
+        "tipo_tarea": "Renovación",
+        "cia_aseguradora": "DKV",
+        "mes_vencimiento": 11
+      },
+      "orden": ["fecha_limite", "asc"]
+    }
+  }
+}
