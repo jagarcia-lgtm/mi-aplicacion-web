@@ -22,18 +22,20 @@ type Tab = 'activity' | 'comments' | 'whatsapp' | 'email' | 'signature' | 'chat_
 
 export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, initialData, allTasks = [] }) => {
   const [footerTab, setFooterTab] = useState<Tab>('activity');
-  
+
   const liveTask = useMemo(() => {
     if (initialData?.id) {
         return allTasks.find(t => t.id === initialData.id) || initialData;
     }
     return initialData;
   }, [initialData, allTasks, isOpen]);
-  
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [date, setDate] = useState(''); 
-  const [dueDate, setDueDate] = useState(''); 
+  const [date, setDate] = useState('');
+  const [reminderDate, setReminderDate] = useState('');
+  const [emailDraft, setEmailDraft] = useState({ to: '', subject: '', body: '' });
+  const [dueDate, setDueDate] = useState('');
   const [priority, setPriority] = useState<Priority>(Priority.MEDIUM);
   const [energy, setEnergy] = useState<EnergyLevel>(EnergyLevel.MEDIUM);
   const [status, setStatus] = useState<TaskStatus>(TaskStatus.TODO);
@@ -45,7 +47,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [currentSubtask, setCurrentSubtask] = useState('');
   const [assignedTo, setAssignedTo] = useState<string[]>([]);
-  const [supervisorId, setSupervisorId] = useState<string>(''); 
+  const [supervisorId, setSupervisorId] = useState<string>('');
   const [module, setModule] = useState<TaskModule>('General');
   const [taskType, setTaskType] = useState<TaskType | ''>('');
   const [clientId, setClientId] = useState('');
@@ -81,6 +83,13 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
   const [isAILoading, setIsAILoading] = useState(false);
 
   useEffect(() => {
+    if (isOpen) {
+      setShowTimeModal(false); setSessionSeconds(0); setManualSessionMinutes(0);
+      setFooterTab('activity'); setNewComment(''); setNewInternalMsg('');
+      setShowAI(false); setAiInput(''); setAiResponse(''); setIsTagListOpen(false);
+      setReminderDate(initialData?.reminderDate || '');
+      setEmailDraft(initialData?.emailDraft || { to: initialData?.clientEmail || '', subject: initialData?.title || '', body: '' });
+    }
     if (isOpen && initialData) {
         setTitle(initialData.title || '');
         setDescription(initialData.description || '');
@@ -110,7 +119,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
         setTotalTimeSpent(initialData.totalTimeSpent || 0);
         setInternalMessages(initialData.internalMessages || []);
         setRecurrence(initialData.recurrence || { type: 'none' });
-        
+
         if (initialData.id) {
             setWhatsAppMessages(getWhatsAppMessages(initialData.id));
             setEmailMessages(getEmailMessages(initialData.id));
@@ -144,6 +153,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
     setPriority(Priority.MEDIUM); setEnergy(EnergyLevel.MEDIUM); setStatus(TaskStatus.TODO);
     setTags([]); setLocation(''); setSubtasks([]); setAssignedTo([]); setSupervisorId('');
     setModule('General'); setTaskType(''); setClientId(''); setPolicyId(''); setTotalTimeSpent(0);
+    setClientName(''); setClientPhone(''); setClientEmail(''); setPolicyNumber('');
+    setInsurer(''); setBranch(''); setProcessStatus('En curso'); setIsUrgent(false);
+    setWhatsAppMessages([]); setEmailMessages([]);
     setSessionSeconds(0); setInternalMessages([]);
     setShowAI(false); setAiInput(''); setAiResponse('');
     setRecurrence({ type: 'none' });
@@ -161,15 +173,17 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
     const finalTotalTime = (initialData?.totalTimeSpent || 0) + timeToAdd;
     let newAuditLog = [...(initialData?.auditLog || [])];
     if (saveTime && timeToAdd > 0) {
-        newAuditLog.push({ 
-            id: `log_${Date.now()}`, 
-            timestamp: Date.now(), 
-            userId: getCurrentUser()?.id || 'unknown', 
-            action: 'Tiempo registrado', 
-            details: `${timeToAdd} min` 
+        newAuditLog.push({
+            id: `log_${Date.now()}`,
+            timestamp: Date.now(),
+            userId: getCurrentUser()?.id || 'unknown',
+            action: 'Tiempo registrado',
+            details: `${timeToAdd} min`
         });
     }
-    onSave({ title, description, dueDate, date, priority, status, tags, location, subtasks, assignedTo, supervisorId, myDayDate, module, taskType: taskType as TaskType || undefined, clientId: clientId || undefined, clientName, clientPhone, clientEmail, policyId: policyId || undefined, policyNumber, insurer, branch: branch as InsuranceBranch || undefined, processStatus, isUrgent, totalTimeSpent: finalTotalTime, auditLog: newAuditLog, energy, internalMessages, recurrence });
+    onSave({ title, description, dueDate, date, reminderDate, emailDraft, priority, status, tags, location, subtasks, assignedTo, supervisorId, myDayDate, module, taskType: taskType as TaskType || undefined, clientId: clientId || undefined, clientName, clientPhone, clientEmail, policyId: policyId || undefined, policyNumber, insurer, branch: branch as InsuranceBranch || undefined, processStatus, isUrgent, totalTimeSpent: finalTotalTime, auditLog: newAuditLog, energy, internalMessages, recurrence });
+    setShowTimeModal(false);
+    setSessionSeconds(0);
     onClose();
   };
 
@@ -225,7 +239,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 bg-black/60 backdrop-blur-sm overflow-hidden">
       <div className="task-form-shell bg-white rounded-xl shadow-2xl w-full max-w-6xl h-[96vh] flex flex-col md:flex-row overflow-hidden animate-in fade-in zoom-in duration-200 relative">
-        
+
         {showTimeModal && (
             <div className="absolute inset-0 z-[110] bg-black/50 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-200">
                 <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm border border-gray-100">
@@ -261,7 +275,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
                         <AlignLeft size={20} className="text-gray-400 mt-1" />
                         <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full text-sm text-gray-700 placeholder-gray-400 outline-none bg-transparent border-none p-0 resize-none min-h-[80px] focus:ring-0 leading-relaxed" placeholder="Añadir una descripción detallada..." rows={3} />
                     </div>
-                    
+
                     <div className="space-y-4">
                         <div className="flex items-center gap-2 text-gray-400 font-bold text-xs uppercase tracking-widest mb-2"><CheckSquare size={16} /> Lista de Control</div>
                         <div className="space-y-2 pl-8">
@@ -295,7 +309,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
                             </button>
                         ))}
                     </div>
-                    
+
                     <div className="p-8">
                         {/* TAB: ACTIVIDAD */}
                         {footerTab === 'activity' && (
@@ -303,7 +317,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
                                 {/* Botón Agente IA */}
                                 <div className="mb-6">
                                     {!showAI ? (
-                                        <button 
+                                        <button
                                             onClick={() => setShowAI(true)}
                                             className="w-full flex items-center justify-center gap-2 p-4 border-2 border-dashed border-[#009696]/30 rounded-2xl bg-[#009696]/5 text-[#009696] hover:bg-[#009696]/10 transition-all font-bold text-sm group"
                                         >
@@ -318,7 +332,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
                                                 </div>
                                                 <button onClick={() => setShowAI(false)} className="text-gray-300 hover:text-gray-500"><X size={16} /></button>
                                             </div>
-                                            
+
                                             {aiResponse && (
                                                 <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-100 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap animate-in fade-in duration-500">
                                                     <div className="flex gap-3 items-start">
@@ -331,15 +345,15 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
                                             )}
 
                                             <div className="flex gap-2">
-                                                <input 
-                                                    type="text" 
+                                                <input
+                                                    type="text"
                                                     value={aiInput}
                                                     onChange={(e) => setAiInput(e.target.value)}
                                                     onKeyDown={(e) => e.key === 'Enter' && askAI()}
                                                     placeholder="Pregúntame algo sobre este trámite..."
                                                     className="flex-1 bg-gray-50 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-1 focus:ring-[#009696]"
                                                 />
-                                                <button 
+                                                <button
                                                     onClick={askAI}
                                                     disabled={isAILoading || !aiInput.trim()}
                                                     className="p-2.5 bg-[#009696] text-white rounded-xl hover:bg-[#007a7a] disabled:opacity-50 transition-colors shadow-lg"
@@ -421,9 +435,16 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
                                 <div className="p-4 bg-white border-t border-gray-100 flex gap-3"><input type="text" placeholder="Escribe un mensaje de WhatsApp..." className="flex-1 bg-gray-50 border-none rounded-2xl px-5 py-3 text-sm focus:ring-1 focus:ring-green-500" /><button className="p-3 bg-green-600 text-white rounded-2xl shadow-lg hover:bg-green-700 transition-colors"><Send size={18} /></button></div>
                             </div>
                         )}
-                        
+
                         {footerTab === 'email' && (
                             <div className="space-y-6">
+                                <section className="border rounded-xl p-4 space-y-3 bg-white" aria-label="Borrador de email">
+                                    <p className="text-xs text-gray-600">Prepara el correo y guárdalo con la tarea. Abrir en mi correo inicia tu aplicación de correo para que revises y envíes el mensaje. GestiBrok no envía ni sincroniza correos.</p>
+                                    <label className="block text-xs font-semibold">Para<input aria-label="Destinatario del email" type="email" value={emailDraft.to} onChange={e => setEmailDraft({ ...emailDraft, to: e.target.value })} className="mt-1 block w-full border rounded p-2 text-sm" /></label>
+                                    <label className="block text-xs font-semibold">Asunto<input aria-label="Asunto del email" value={emailDraft.subject} onChange={e => setEmailDraft({ ...emailDraft, subject: e.target.value })} className="mt-1 block w-full border rounded p-2 text-sm" /></label>
+                                    <label className="block text-xs font-semibold">Mensaje<textarea aria-label="Mensaje del email" rows={5} value={emailDraft.body} onChange={e => setEmailDraft({ ...emailDraft, body: e.target.value })} className="mt-1 block w-full border rounded p-2 text-sm" /></label>
+                                    {/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailDraft.to.trim()) ? <a className="inline-flex rounded bg-[#009696] text-white px-3 py-2 text-sm" href={`mailto:${encodeURIComponent(emailDraft.to.trim())}?subject=${encodeURIComponent(emailDraft.subject)}&body=${encodeURIComponent(emailDraft.body)}`}>Abrir en mi correo</a> : <p className="text-xs text-gray-500">Introduce un destinatario válido para abrir el correo.</p>}
+                                </section>
                                 {emailMessages.map(email => (
                                     <div key={email.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all group">
                                         <div className="p-5 border-b border-gray-50 flex items-start gap-4 bg-gray-50/50">
@@ -439,7 +460,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
                                 ))}
                             </div>
                         )}
-                        
+
                         {footerTab === 'signature' && (
                             <div className="space-y-8 max-w-2xl mx-auto">
                                 <div className="bg-white border-2 border-dashed border-gray-100 rounded-2xl p-12 text-center flex flex-col items-center">
@@ -450,7 +471,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
                                         {isSendingSig ? <><Loader2 size={18} className="animate-spin mr-3"/> PROCESANDO...</> : <><Plus size={18} className="mr-3"/> NUEVA SOLICITUD DE FIRMA</>}
                                     </Button>
                                 </div>
-                                
+
                                 {(liveTask?.signatureRequests || []).length > 0 && (
                                     <div className="space-y-3 pt-6 border-t border-gray-100">
                                         <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-2 mb-4">Registro de envíos</h4>
@@ -475,7 +496,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
         {/* AJUSTES LATERALES (Derecha) */}
         <div className="task-form-details w-full md:w-80 bg-gray-50/50 border-l border-gray-100 flex flex-col h-full overflow-y-auto flex-shrink-0 custom-scrollbar">
              <div className="p-6 space-y-8">
-                
+
                 {/* SECCIÓN: RELACIÓN */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 text-gray-500 font-bold text-xs uppercase tracking-widest">
@@ -533,6 +554,8 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
                         <DatePicker label="Vencimiento" value={dueDate} recurrence={recurrence} onChange={handleDateChange} align="right" />
                     </div>
 
+                    <div className="p-4 space-y-2 border-b border-gray-100"><label className="block text-sm text-gray-600">Recordatorio<input type="datetime-local" value={reminderDate} onChange={e => setReminderDate(e.target.value)} className="block mt-2 w-full border rounded p-2 text-xs bg-white" /></label><p className="text-xs text-gray-500">Aviso en GestiBrok con la aplicación abierta.</p></div>
+
                     <div className="flex items-center justify-between p-4 group transition-colors hover:bg-gray-50">
                         <div className="flex items-center gap-4 text-gray-500 font-medium"><Flag size={18} className="text-gray-400" /><span className="text-sm">Prioridad</span></div>
                         <select value={priority} onChange={e => setPriority(e.target.value as Priority)} className="text-sm text-right font-bold text-gray-700 border-none p-0 focus:ring-0 bg-transparent cursor-pointer"><option value={Priority.VERY_HIGH}>Urgente ⚡</option><option value={Priority.HIGH}>Alta 🔴</option><option value={Priority.MEDIUM}>Media 🟡</option><option value={Priority.LOW}>Baja 🔵</option></select>
@@ -552,15 +575,15 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
                     <div className="p-4 space-y-3 relative">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4 text-gray-500 font-medium"><Tag size={18} className="text-gray-400" /><span className="text-sm">Etiquetas</span></div>
-                          <button 
-                            type="button" 
+                          <button
+                            type="button"
                             onClick={() => setIsTagListOpen(!isTagListOpen)}
                             className="text-[#009696] hover:bg-[#009696]/5 p-1 rounded transition-colors"
                           >
                             <Plus size={14} />
                           </button>
                         </div>
-                        
+
                         <div className="flex flex-wrap gap-2 min-h-[40px] p-2 bg-gray-100/30 rounded-lg border border-transparent focus-within:border-[#009696]/20 transition-all">
                             {tags.length === 0 && !isTagListOpen && <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1"># Sin etiquetas</span>}
                             {tags.map(tag => (
@@ -572,8 +595,8 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
                           <div className="absolute left-0 right-0 bottom-full mb-2 bg-white border border-gray-200 rounded-xl shadow-2xl z-[60] overflow-hidden animate-in slide-in-from-bottom-2 duration-200">
                             <div className="p-2 border-b border-gray-50 flex items-center gap-2">
                               <Search size={14} className="text-gray-400 ml-1" />
-                              <input 
-                                type="text" 
+                              <input
+                                type="text"
                                 value={tagSearch}
                                 onChange={(e) => setTagSearch(e.target.value)}
                                 placeholder="Buscar aseguradora..."
@@ -584,7 +607,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
                             </div>
                             <div className="max-h-48 overflow-y-auto p-1 custom-scrollbar">
                               {filteredInsuranceTags.map(tagName => (
-                                <button 
+                                <button
                                   key={tagName}
                                   onClick={() => addTag(tagName)}
                                   className="w-full text-left px-3 py-2 text-xs hover:bg-[#009696]/5 rounded-lg flex items-center justify-between group"
@@ -594,7 +617,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
                                 </button>
                               ))}
                               {filteredInsuranceTags.length === 0 && tagSearch && (
-                                <button 
+                                <button
                                   onClick={() => addTag(tagSearch)}
                                   className="w-full text-left px-3 py-2 text-xs hover:bg-[#009696]/5 rounded-lg flex items-center gap-2"
                                 >

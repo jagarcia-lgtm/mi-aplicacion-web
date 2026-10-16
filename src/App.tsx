@@ -18,6 +18,7 @@ import { ListView } from './components/ListView';
 import { HomeView } from './components/HomeView'; 
 import { Sidebar } from './components/Sidebar'; 
 import { SettingsModal } from './components/SettingsModal';
+import { TaskReminders } from './components/TaskReminders';
 import { Loader2, X, Menu, Search, Filter, LayoutTemplate, List, KanbanSquare, Calendar as CalendarIcon, SlidersHorizontal, ArrowLeft, Sparkles, Download } from 'lucide-react';
 
 type AppView = 'home' | 'dashboard' | 'list' | 'calendar' | 'myDay' | 'kanban' | 'inbox' | 'clients' | 'upcoming' | 'assigned_me' | 'assigned_others' | 'supervisor_me' | 'no_date' | 'priority_high' | 'search_results' | 'energy_high' | 'energy_medium' | 'energy_low' | 'home_active' | 'home_overdue' | 'home_completed' | 'home_upcoming_48h' | 'home_upcoming_7d' | string;
@@ -256,6 +257,7 @@ const App: React.FC = () => {
       />
       <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
         <header className="flex flex-col border-b border-gray-100 bg-white z-20">
+            <TaskReminders tasks={tasks} onOpen={openEditModal} />
             <div className="flex items-center justify-between px-6 py-4">
                 <div className="flex items-center gap-3">
                     <button aria-label="Abrir menú" onClick={() => setIsSidebarOpen(true)} className="md:hidden p-2 -ml-2 text-gray-600"><Menu size={24} /></button>

@@ -19,7 +19,9 @@ No se requieren claves, variables ni servicios externos para la demo. React 19, 
 
 - Selección de perfiles de demostración e inicio configurable.
 - Vista Hoy, resumen de Inicio, buzón y filtros por contexto, aseguradora, prioridad y responsable.
-- Creación rápida y edición de trámites, subtareas, notas, estados y registro de tiempo.
+- Creación rápida con calendario de fecha límite, contexto seleccionable y recordatorios; edición de trámites, subtareas, notas, estados y registro de tiempo.
+- Recordatorios dentro de GestiBrok mientras la aplicación esté abierta; no hay notificaciones con la aplicación cerrada.
+- Borradores de email guardados con cada tarea y apertura en el programa de correo mediante mailto, sin envío automático.
 - Lista, tablero Kanban y calendario.
 - Vistas de Clientes 360° y Panel de seguros. Sus contenidos dependen de los datos locales; la copia portable no trae una cartera de clientes ni pólizas.
 - Etiquetas, configuración y descarga del código portable.
@@ -28,7 +30,7 @@ No se requieren claves, variables ni servicios externos para la demo. React 19, 
 
 Los perfiles no son autenticación real y los permisos no se aplican en un servidor. Se usan las claves originales `gestibrok_mock_v11`, `my_task_manager_auth_user`, `gestibrok_clients_v1` y otras en `localStorage`. Los datos se guardan por navegador y origen; no hay sincronización entre dispositivos.
 
-Firebase no está conectado. Las pestañas de comunicaciones y las solicitudes de firma son simulaciones, sin envíos reales. Los enlaces de WhatsApp abren la aplicación externa de WhatsApp; no envían mensajes automáticamente. Los adjuntos no tienen almacenamiento de archivos real. El asistente IA muestra que no está conectado; no se incrustan claves API en JavaScript. Conectar estos servicios requiere un trabajo posterior de backend y autenticación.
+Firebase no está conectado. WhatsApp integrado y las solicitudes de firma son simulaciones, sin envíos reales. El email permite preparar un borrador y abrirlo en el programa de correo del usuario; no hay envío integrado ni recepción/sincronización de mensajes. Los enlaces de WhatsApp abren la aplicación externa de WhatsApp; no envían mensajes automáticamente. Los adjuntos no tienen almacenamiento de archivos real. El asistente IA muestra que no está conectado; no se incrustan claves API en JavaScript. Conectar estos servicios requiere un trabajo posterior de backend y autenticación.
 
 Los datos anteriores de Nexo usan otra clave (`nexo.tasks.v1`) y no se borran ni se migran automáticamente. Se conservó el prototipo previo fuera del checkout en `/workspace/shared/backups/nexo-before-gestibrok.tar.gz`. El ZIP original se conserva como adjunto; no se ejecutaron sus scripts de restauración.
 
@@ -40,7 +42,7 @@ npm test
 npm run build:demo
 ```
 
-Playwright usa Chromium en `/usr/bin/chromium` (o la ruta establecida en `CHROMIUM_PATH`) y arranca el servidor si no hay uno en el puerto 5173. Las seis pruebas cubren acceso y estilos sin peticiones externas, creación/edición/persistencia/subtareas, finalización/eliminación, vistas principales, descarga ZIP y creación/edición móvil. Cada prueba utiliza un navegador aislado.
+Playwright usa Chromium en `/usr/bin/chromium` (o la ruta establecida en `CHROMIUM_PATH`) y arranca el servidor si no hay uno en el puerto 5173. Las ocho pruebas cubren acceso y estilos sin peticiones externas, creación/edición/persistencia/subtareas, finalización/eliminación, vistas principales, descarga ZIP , creación/edición móvil, fecha/contexto/recordatorios y reapertura tras guardar con tiempo y borrador de email. Cada prueba utiliza un navegador aislado.
 
 ## Compilación y publicación
 

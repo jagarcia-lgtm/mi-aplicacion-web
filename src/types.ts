@@ -229,6 +229,7 @@ export interface Task {
   description?: string;
   date?: string;
   dueDate: string;
+  emailDraft?: { to: string; subject: string; body: string };
   reminderDate?: string; 
   priority: Priority;
   status: TaskStatus;

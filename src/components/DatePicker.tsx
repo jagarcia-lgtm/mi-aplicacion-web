@@ -2,6 +2,8 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Calendar, Sun, ArrowRight, Ban, ChevronLeft, ChevronRight, X, RefreshCw, Clock, CalendarDays } from 'lucide-react';
 import { RecurrenceConfig } from '../types';
+import { createPortal } from 'react-dom';
+const localDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
 interface DatePickerProps {
   label: string;
@@ -15,12 +17,12 @@ interface DatePickerProps {
 
 const DIAS_SEMANA = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 
-export const DatePicker: React.FC<DatePickerProps> = ({ 
-  label, 
-  value, 
+export const DatePicker: React.FC<DatePickerProps> = ({
+  label,
+  value,
   recurrence,
-  onChange, 
-  icon, 
+  onChange,
+  icon,
   placeholder = "Sin fecha",
   align = 'left'
 }) => {
@@ -28,7 +30,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   const [inputText, setInputText] = useState('');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [coords, setCoords] = useState({ top: 0, left: 0, width: 280 });
-  
+
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -40,13 +42,13 @@ export const DatePicker: React.FC<DatePickerProps> = ({
       const dropdownWidth = 280;
       const spaceBelow = window.innerHeight - rect.bottom;
       const spaceAbove = rect.top;
-      
+
       let top = rect.bottom + 8;
       let left = align === 'right' ? rect.right - dropdownWidth : rect.left;
 
       // Si no cabe abajo, mostrar arriba
       if (spaceBelow < 420 && spaceAbove > spaceBelow) {
-        top = rect.top - 410; // Estimación de altura máxima
+        top = Math.max(8, rect.top - 410); // Estimación de altura máxima
       }
 
       // Asegurar que no se salga por los lados
@@ -59,6 +61,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   }, [isOpen, align]);
 
   useEffect(() => {
+    const handleResize = () => setIsOpen(false);
     const handleClickOutside = (event: MouseEvent) => {
       if (
         containerRef.current && !containerRef.current.contains(event.target as Node) &&
@@ -69,23 +72,23 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     };
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
-      window.addEventListener('scroll', () => setIsOpen(false), true);
+      window.addEventListener('resize', handleResize);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('scroll', () => setIsOpen(false), true);
+      window.removeEventListener('resize', handleResize);
     };
   }, [isOpen]);
 
   const parseNaturalLanguage = (text: string): { date: string, recurrence?: RecurrenceConfig } | null => {
     const t = text.toLowerCase().trim();
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = localDate(today);
 
     if (t === 'hoy') return { date: todayStr };
     if (t === 'mañana' || t === 'manana') {
         const d = new Date(); d.setDate(d.getDate() + 1);
-        return { date: d.toISOString().split('T')[0] };
+        return { date: localDate(d) };
     }
 
     if (t === 'cada día' || t === 'diariamente' || t === 'cada dia') {
@@ -96,9 +99,9 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         if (t === `cada ${DIAS_SEMANA[i]}` || t === `todos los ${DIAS_SEMANA[i]}` || (i === 0 && t === 'cada dom')) {
             const d = new Date();
             d.setDate(d.getDate() + (i + 7 - d.getDay()) % 7);
-            return { 
-                date: d.toISOString().split('T')[0], 
-                recurrence: { type: 'weekly', dayOfWeek: i, intervalDays: 1, pattern: `cada ${DIAS_SEMANA[i]}` } 
+            return {
+                date: localDate(d),
+                recurrence: { type: 'weekly', dayOfWeek: i, intervalDays: 1, pattern: `cada ${DIAS_SEMANA[i]}` }
             };
         }
     }
@@ -112,7 +115,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     if (t === 'cada mes') {
         return { date: todayStr, recurrence: { type: 'monthly', intervalDays: 1, pattern: 'cada mes' } };
     }
-    
+
     const cadaMesDia = t.match(/cada mes el d[íi]a (\d+)/);
     if (cadaMesDia) {
         const day = parseInt(cadaMesDia[1]);
@@ -120,7 +123,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
             const d = new Date();
             if (d.getDate() > day) d.setMonth(d.getMonth() + 1);
             d.setDate(day);
-            return { date: d.toISOString().split('T')[0], recurrence: { type: 'monthly', dayOfMonth: day, pattern: `cada mes el día ${day}` } };
+            return { date: localDate(d), recurrence: { type: 'monthly', dayOfMonth: day, pattern: `cada mes el día ${day}` } };
         }
     }
 
@@ -150,7 +153,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   };
 
   const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
+  const todayStr = localDate(today);
 
   const renderCalendar = () => {
     const year = currentMonth.getFullYear();
@@ -158,13 +161,13 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const firstDay = new Date(year, month, 1).getDay();
     const startOffset = firstDay === 0 ? 6 : firstDay - 1;
-    
+
     const days = [];
     for (let i = 0; i < startOffset; i++) days.push(<div key={`empty-${i}`} className="h-8 w-8"></div>);
 
     for (let d = 1; d <= daysInMonth; d++) {
       const date = new Date(year, month, d);
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = localDate(date);
       const isSelected = value === dateStr;
       const isToday = dateStr === todayStr;
 
@@ -184,13 +187,15 @@ export const DatePicker: React.FC<DatePickerProps> = ({
 
   const displayValue = useMemo(() => {
     if (recurrence && recurrence.pattern) return recurrence.pattern;
-    return value ? new Date(value).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : placeholder;
+    return value ? new Date(`${value}T12:00:00`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : placeholder;
   }, [value, recurrence, placeholder]);
 
   return (
     <div className="relative inline-block" ref={containerRef}>
-      <button 
+      <button
         type="button"
+        aria-label={label}
+        aria-expanded={isOpen}
         onClick={() => setIsOpen(!isOpen)}
         className={`flex items-center gap-2 text-xs font-bold bg-gray-50 hover:bg-gray-100 border border-gray-100 rounded-lg px-3 py-2 transition-all shadow-sm ${value ? 'text-gray-800' : 'text-gray-500'} ${recurrence?.type && recurrence.type !== 'none' ? 'text-[#009696] bg-[#009696]/5 border-[#009696]/20' : ''}`}
       >
@@ -198,22 +203,26 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         <span className="truncate max-w-[80px]">{displayValue}</span>
       </button>
 
-      {isOpen && (
-        <div 
+      {isOpen && createPortal(
+        <div
+          role="dialog"
+          aria-label={`Elegir ${label.toLowerCase()}`}
           ref={dropdownRef}
-          style={{ 
-            position: 'fixed', 
-            top: coords.top, 
-            left: coords.left, 
+          style={{
+            position: 'fixed',
+            top: coords.top,
+            left: coords.left,
             width: coords.width,
-            zIndex: 9999 
+            maxHeight: `calc(100dvh - ${Math.max(8, coords.top)}px - 8px)`,
+            overflowY: 'auto',
+            zIndex: 9999
           }}
           className="bg-white border border-gray-200 shadow-[0_10px_40px_rgba(0,0,0,0.15)] rounded-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150"
         >
           {/* Header: Input Lenguaje Natural */}
           <div className="p-4 border-b border-gray-100 bg-gray-50/50">
             <div className="relative flex items-center">
-                <input 
+                <input
                     ref={inputRef}
                     type="text"
                     value={inputText}
@@ -223,10 +232,10 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                     className="w-full text-sm border-none focus:ring-0 p-0 bg-transparent text-gray-800 placeholder-gray-400 font-medium"
                 />
                 {inputText ? (
-                    <button onClick={() => setInputText('')} className="p-1 text-gray-300 hover:text-gray-500"><X size={14} /></button>
+                    <button type="button" onClick={() => setInputText('')} className="p-1 text-gray-300 hover:text-gray-500"><X size={14} /></button>
                 ) : <Clock size={14} className="text-gray-300" />}
             </div>
-            
+
             {activePattern && (
                 <div className="mt-3 flex items-center gap-2 text-[10px] bg-[#009696]/10 p-2 rounded-lg text-[#007a7a] border border-[#009696]/10 animate-in slide-in-from-top-1 font-bold uppercase tracking-wider">
                     {activePattern.recurrence ? <RefreshCw size={12} /> : <Calendar size={12}/>}
@@ -244,7 +253,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                 </button>
                 <button type="button" onClick={() => {
                     const d = new Date(); d.setDate(d.getDate() + 1);
-                    handleSelect(d.toISOString().split('T')[0]);
+                    handleSelect(localDate(d));
                 }} className="w-full flex items-center justify-between px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-xl transition-colors group">
                     <div className="flex items-center gap-3 font-medium"><Sun size={16} className="text-orange-500"/> Mañana</div>
                     <span className="text-[10px] text-gray-400 font-bold uppercase">{new Intl.DateTimeFormat('es-ES', { weekday: 'short' }).format(new Date(Date.now() + 86400000))}</span>
@@ -276,15 +285,15 @@ export const DatePicker: React.FC<DatePickerProps> = ({
 
           {/* Footer Actions */}
           <div className="p-3 border-t border-gray-100 bg-gray-50/50 flex flex-col gap-2">
-             <button 
-                type="button" 
+             <button
+                type="button"
                 onClick={() => setInputText('cada semana')}
                 className={`w-full flex items-center justify-center gap-2 py-2 text-xs font-black uppercase tracking-tighter rounded-xl transition-all border ${recurrence?.type && recurrence.type !== 'none' ? 'bg-[#009696] text-white border-[#009696]' : 'bg-white text-gray-600 border-gray-200 hover:border-[#009696] hover:text-[#009696]'}`}
              >
                 <RefreshCw size={14}/> {recurrence?.pattern ? 'Editar Repetición' : 'Repetir'}
              </button>
           </div>
-        </div>
+        </div>, document.body
       )}
     </div>
   );

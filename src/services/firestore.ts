@@ -121,13 +121,13 @@ export const createTask = async (taskData: Omit<Task, 'id' | 'createdAt' | 'crea
     assignedTo: taskData.assignedTo || [],
     tags: taskData.tags || [],
     subtasks: taskData.subtasks || [],
-    totalTimeSpent: 0,
+    totalTimeSpent: taskData.totalTimeSpent || 0,
     auditLog: [{ 
       id: `log_${Date.now()}`, 
       timestamp: Date.now(), 
       userId: currentUser?.id || 'unknown', 
       action: 'Tarea creada' 
-    }]
+    }, ...(taskData.auditLog || [])]
   };
   
   saveLocalTasks([newTask, ...tasks]);
