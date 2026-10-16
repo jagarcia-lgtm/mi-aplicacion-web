@@ -139,6 +139,7 @@ test('añade fecha, contexto y recordatorio y avisa con la aplicación abierta',
   await page.clock.fastForward(180000);
   await page.getByRole('button', { name: 'Abrir recordatorio: Renovación con aviso' }).click();
   await expect(page.getByPlaceholder('Título del trámite...')).toHaveValue('Renovación con aviso');
+  await page.getByRole('tab', { name: 'Planificación', exact: true }).click();
   await expect(page.getByLabel('Recordatorio', { exact: true })).toHaveValue('2030-06-10T09:02');
   await page.getByRole('button', { name: 'Cerrar trámite', exact: true }).click();
   await page.getByRole('button', { name: 'Descartar recordatorio: Renovación con aviso' }).click();
@@ -178,4 +179,92 @@ test('guardar y cerrar permite reabrir, seguir trabajando y conservar tiempo y b
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('gestibrok_mock_v11'))[0]);
   expect(saved.totalTimeSpent).toBe(5);
   expect(saved.emailDraft.to).toBe('cliente@example.com');
+});
+
+
+test('organiza los campos de la tarea sin scroll lateral y conserva los cambios entre pestañas', async ({ page }) => {
+  await login(page);
+  await quickTask(page, 'Organización compacta');
+  await page.getByText('Organización compacta', { exact: true }).click();
+  const sidebar = page.getByRole('complementary', { name: 'Organización de la tarea' });
+  for (const height of [620, 768, 1000]) {
+    await page.setViewportSize({ width: 1366, height });
+    for (const section of ['Esencial', 'Planificación', 'Detalles']) {
+      await sidebar.getByRole('tab', { name: section, exact: true }).click();
+      const panel = sidebar.getByRole('tabpanel');
+      await expect(panel).toBeVisible();
+      const size = await panel.evaluate(element => ({ client: element.clientHeight, scroll: element.scrollHeight }));
+      expect(size.scroll, `${section}, pantalla de ${height}px`).toBeLessThanOrEqual(size.client + 1);
+    }
+  }
+  await sidebar.getByRole('tab', { name: 'Esencial', exact: true }).click();
+  await sidebar.getByLabel('Contexto', { exact: true }).selectOption('Siniestros');
+  await sidebar.getByLabel('Tipo de trámite').selectOption('Apertura');
+  await sidebar.getByLabel('Prioridad', { exact: true }).selectOption('Alta');
+  await sidebar.getByLabel('Supervisor', { exact: true }).selectOption('u2');
+  await sidebar.getByRole('button', { name: 'Asignar a Ana García', exact: true }).click();
+  await sidebar.getByRole('tab', { name: 'Detalles', exact: true }).click();
+  await sidebar.getByLabel('Nueva etiqueta').fill('Revisar documentación');
+  await sidebar.getByRole('button', { name: 'Añadir etiqueta', exact: true }).click();
+  await sidebar.getByLabel('Dirección o lugar').fill('Oficina principal');
+  await sidebar.getByRole('tab', { name: 'Planificación', exact: true }).click();
+  await sidebar.getByLabel('Recordatorio', { exact: true }).fill('2030-07-01T10:00');
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await page.getByRole('button', { name: 'Descartar tiempo y Cerrar', exact: true }).click();
+  await page.reload();
+  await page.getByRole('button', { name: /Asignado a mí/ }).click();
+  await page.getByText('Organización compacta', { exact: true }).click();
+  await expect(sidebar.getByLabel('Contexto', { exact: true })).toHaveValue('Siniestros');
+  await expect(sidebar.getByLabel('Tipo de trámite')).toHaveValue('Apertura');
+  await expect(sidebar.getByLabel('Supervisor', { exact: true })).toHaveValue('u2');
+  await expect(sidebar.getByRole('button', { name: 'Asignar a Ana García', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await sidebar.getByRole('tab', { name: 'Detalles', exact: true }).click();
+  await expect(sidebar.getByText('Revisar documentación', { exact: true })).toBeVisible();
+  await expect(sidebar.getByLabel('Dirección o lugar')).toHaveValue('Oficina principal');
+  await sidebar.getByRole('tab', { name: 'Planificación', exact: true }).click();
+  await expect(sidebar.getByLabel('Recordatorio', { exact: true })).toHaveValue('2030-07-01T10:00');
+});
+
+test('en móvil accede directamente a Organización sin recorrer la tarea', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await login(page);
+  await page.getByRole('button', { name: 'Abrir menú' }).click();
+  await quickTask(page, 'Organización desde móvil');
+  await page.getByText('Organización desde móvil', { exact: true }).click();
+  await page.getByRole('button', { name: 'Organización', exact: true }).click();
+  const sidebar = page.getByRole('complementary', { name: 'Organización de la tarea' });
+  await expect(sidebar.getByLabel('Contexto', { exact: true })).toBeInViewport();
+  await sidebar.getByLabel('Contexto', { exact: true }).selectOption('Comercial');
+  await sidebar.getByRole('tab', { name: 'Planificación', exact: true }).click();
+  await expect(sidebar.getByLabel('Recordatorio', { exact: true })).toBeInViewport();
+  await page.getByRole('button', { name: 'Volver a la tarea', exact: true }).click();
+  await expect(page.getByPlaceholder('Título del trámite...')).toBeInViewport();
+});
+
+test('prepara WhatsApp, valida el teléfono y conserva el borrador sin enviar mensajes', async ({ page }) => {
+  await login(page);
+  await quickTask(page, 'Seguimiento por WhatsApp');
+  await page.getByText('Seguimiento por WhatsApp', { exact: true }).click();
+  await page.getByRole('button', { name: 'WhatsApp', exact: true }).click();
+  const panel = page.getByRole('region', { name: 'Preparar mensaje de WhatsApp' });
+  await expect(panel.getByText('Sin sincronización', { exact: true })).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Continuar en WhatsApp', exact: true })).toBeDisabled();
+  await panel.getByLabel('Teléfono de WhatsApp').fill('abc');
+  await expect(panel.getByText(/Revisa el número/)).toBeVisible();
+  await panel.getByLabel('Teléfono de WhatsApp').fill('+34 600 123 456');
+  await panel.getByRole('button', { name: 'Documentación', exact: true }).click();
+  await expect(panel.getByLabel('Mensaje de WhatsApp')).toHaveValue(/documentación pendiente/);
+  await panel.getByLabel('Mensaje de WhatsApp').fill('Hola, ¿puedes revisar la póliza?');
+  const destination = new URL(await panel.getByRole('link', { name: 'Continuar en WhatsApp' }).getAttribute('href'));
+  expect(destination.origin).toBe('https://wa.me');
+  expect(destination.pathname).toBe('/34600123456');
+  expect(destination.searchParams.get('text')).toBe('Hola, ¿puedes revisar la póliza?');
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await page.getByRole('button', { name: 'Descartar tiempo y Cerrar', exact: true }).click();
+  await page.reload();
+  await page.getByRole('button', { name: /Asignado a mí/ }).click();
+  await page.getByText('Seguimiento por WhatsApp', { exact: true }).click();
+  await page.getByRole('button', { name: 'WhatsApp', exact: true }).click();
+  await expect(panel.getByLabel('Teléfono de WhatsApp')).toHaveValue('+34 600 123 456');
+  await expect(panel.getByLabel('Mensaje de WhatsApp')).toHaveValue('Hola, ¿puedes revisar la póliza?');
 });

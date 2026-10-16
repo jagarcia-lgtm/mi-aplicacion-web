@@ -3,11 +3,11 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Task, Priority, TaskStatus, Subtask, InsuranceBranch, TaskType, ProcessStatus, Client, Policy, TaskModule, Attachment, WhatsAppMessage, EmailMessage, TASK_MODULES_MAP, AuditLogEntry, EnergyLevel, SignatureRequest, InternalMessage, RecurrenceConfig } from '../types';
 import { Button } from './Button';
 import { UserAvatar } from './UserAvatar';
-import { DatePicker } from './DatePicker';
-import { LocationPicker } from './LocationPicker';
+import { TaskDetailsSidebar } from './TaskDetailsSidebar';
+import { WhatsAppPanel, WhatsAppDraft } from './WhatsAppPanel';
 import { X, Plus, Hash, CheckSquare, Trash2, Users, MessageSquare, Send, AlignLeft, Shield, FileText, User as UserIcon, BookTemplate, Activity, History, Zap, Search, Paperclip, ImageIcon, Bell, Calendar, Flag, Tag, MapPin, Check, CheckCircle2, Circle, Eye, Download, ChevronRight, MessageCircle, Mail, Phone, MoreVertical, Reply, ReplyAll, Forward, PenTool, UploadCloud, Clock, UserCheck, CalendarDays, Building2, FileCheck, Mic, StopCircle, Timer, Battery, BatteryCharging, BatteryLow, Copy, Maximize2, Minimize2, Sparkles, Loader2, AlertCircle, Share2, MousePointer2, Bot } from 'lucide-react';
-import { MOCK_USERS, getCurrentUser } from '../services/auth';
-import { addComment, getClients, getPolicies, getWhatsAppMessages, getEmailMessages, sendSignatureRequest, INSURANCE_TAGS } from '../services/firestore';
+import { getCurrentUser } from '../services/auth';
+import { addComment, getClients, getPolicies, getEmailMessages, sendSignatureRequest, INSURANCE_TAGS } from '../services/firestore';
 
 
 interface TaskFormProps {
@@ -35,6 +35,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
   const [date, setDate] = useState('');
   const [reminderDate, setReminderDate] = useState('');
   const [emailDraft, setEmailDraft] = useState({ to: '', subject: '', body: '' });
+  const [whatsAppDraft, setWhatsAppDraft] = useState<WhatsAppDraft>({ phone: '', message: '' });
   const [dueDate, setDueDate] = useState('');
   const [priority, setPriority] = useState<Priority>(Priority.MEDIUM);
   const [energy, setEnergy] = useState<EnergyLevel>(EnergyLevel.MEDIUM);
@@ -42,8 +43,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
   const [myDayDate, setMyDayDate] = useState<string | undefined>(undefined);
   const [location, setLocation] = useState('');
   const [tags, setTags] = useState<string[]>([]);
-  const [tagSearch, setTagSearch] = useState('');
-  const [isTagListOpen, setIsTagListOpen] = useState(false);
+  const [mobileSection, setMobileSection] = useState<'task' | 'details'>('task');
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [currentSubtask, setCurrentSubtask] = useState('');
   const [assignedTo, setAssignedTo] = useState<string[]>([]);
@@ -70,7 +70,6 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
   const [newComment, setNewComment] = useState('');
   const [newInternalMsg, setNewInternalMsg] = useState('');
   const [internalMessages, setInternalMessages] = useState<InternalMessage[]>([]);
-  const [whatsappMessages, setWhatsAppMessages] = useState<WhatsAppMessage[]>([]);
   const [emailMessages, setEmailMessages] = useState<EmailMessage[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [availablePolicies, setAvailablePolicies] = useState<Policy[]>([]);
@@ -86,8 +85,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
     if (isOpen) {
       setShowTimeModal(false); setSessionSeconds(0); setManualSessionMinutes(0);
       setFooterTab('activity'); setNewComment(''); setNewInternalMsg('');
-      setShowAI(false); setAiInput(''); setAiResponse(''); setIsTagListOpen(false);
+      setShowAI(false); setAiInput(''); setAiResponse(''); setMobileSection('task');
       setReminderDate(initialData?.reminderDate || '');
+      setWhatsAppDraft(initialData?.whatsAppDraft || { phone: initialData?.clientPhone || '', message: '' });
       setEmailDraft(initialData?.emailDraft || { to: initialData?.clientEmail || '', subject: initialData?.title || '', body: '' });
     }
     if (isOpen && initialData) {
@@ -121,7 +121,6 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
         setRecurrence(initialData.recurrence || { type: 'none' });
 
         if (initialData.id) {
-            setWhatsAppMessages(getWhatsAppMessages(initialData.id));
             setEmailMessages(getEmailMessages(initialData.id));
         }
     } else if (isOpen) {
@@ -155,7 +154,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
     setModule('General'); setTaskType(''); setClientId(''); setPolicyId(''); setTotalTimeSpent(0);
     setClientName(''); setClientPhone(''); setClientEmail(''); setPolicyNumber('');
     setInsurer(''); setBranch(''); setProcessStatus('En curso'); setIsUrgent(false);
-    setWhatsAppMessages([]); setEmailMessages([]);
+    setEmailMessages([]);
     setSessionSeconds(0); setInternalMessages([]);
     setShowAI(false); setAiInput(''); setAiResponse('');
     setRecurrence({ type: 'none' });
@@ -181,15 +180,10 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
             details: `${timeToAdd} min`
         });
     }
-    onSave({ title, description, dueDate, date, reminderDate, emailDraft, priority, status, tags, location, subtasks, assignedTo, supervisorId, myDayDate, module, taskType: taskType as TaskType || undefined, clientId: clientId || undefined, clientName, clientPhone, clientEmail, policyId: policyId || undefined, policyNumber, insurer, branch: branch as InsuranceBranch || undefined, processStatus, isUrgent, totalTimeSpent: finalTotalTime, auditLog: newAuditLog, energy, internalMessages, recurrence });
+    onSave({ title, description, dueDate, date, reminderDate, emailDraft, whatsAppDraft, priority, status, tags, location, subtasks, assignedTo, supervisorId, myDayDate, module, taskType: taskType as TaskType || undefined, clientId: clientId || undefined, clientName, clientPhone, clientEmail, policyId: policyId || undefined, policyNumber, insurer, branch: branch as InsuranceBranch || undefined, processStatus, isUrgent, totalTimeSpent: finalTotalTime, auditLog: newAuditLog, energy, internalMessages, recurrence });
     setShowTimeModal(false);
     setSessionSeconds(0);
     onClose();
-  };
-
-  const handleDateChange = (newDate: string, newRecurrence?: RecurrenceConfig) => {
-    setDueDate(newDate);
-    if (newRecurrence) setRecurrence(newRecurrence);
   };
 
   const handleSendSignature = async () => {
@@ -216,29 +210,42 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
     setNewInternalMsg('');
   };
 
-  const addTag = (tagName: string) => {
-    if (tagName && !tags.includes(tagName)) {
-      setTags([...tags, tagName]);
-    }
-    setTagSearch('');
-    setIsTagListOpen(false);
-  };
-
   const askAI = async () => {
     if (!aiInput.trim()) return;
     setAiResponse('El asistente IA no está conectado en esta demo. Para activarlo se necesita un servicio de servidor; no introduzcas claves API en el navegador.');
   };
 
-  const filteredInsuranceTags = useMemo(() => {
-    const q = tagSearch.toLowerCase();
-    return INSURANCE_TAGS.filter(t => t.toLowerCase().includes(q) && !tags.includes(t));
-  }, [tagSearch, tags]);
+  const handleDetailsChange = (patch: Partial<Task>) => {
+    if ('clientId' in patch) setClientId(patch.clientId || '');
+    if ('clientName' in patch) setClientName(patch.clientName || '');
+    if ('clientPhone' in patch) {
+      setClientPhone(patch.clientPhone || '');
+      setWhatsAppDraft(value => !value.phone || value.phone === clientPhone ? { ...value, phone: patch.clientPhone || '' } : value);
+    }
+    if ('clientEmail' in patch) setClientEmail(patch.clientEmail || '');
+    if ('policyId' in patch) setPolicyId(patch.policyId || '');
+    if ('policyNumber' in patch) setPolicyNumber(patch.policyNumber || '');
+    if ('insurer' in patch) setInsurer(patch.insurer || '');
+    if ('branch' in patch) setBranch(patch.branch || '');
+    if ('module' in patch) setModule(patch.module || 'General');
+    if ('taskType' in patch) setTaskType(patch.taskType || '');
+    if ('priority' in patch && patch.priority) setPriority(patch.priority);
+    if ('energy' in patch && patch.energy) setEnergy(patch.energy);
+    if ('supervisorId' in patch) setSupervisorId(patch.supervisorId || '');
+    if ('assignedTo' in patch) setAssignedTo(patch.assignedTo || []);
+    if ('date' in patch) setDate(patch.date || '');
+    if ('dueDate' in patch) setDueDate(patch.dueDate || '');
+    if ('recurrence' in patch) setRecurrence(patch.recurrence || { type: 'none' });
+    if ('reminderDate' in patch) setReminderDate(patch.reminderDate || '');
+    if ('tags' in patch) setTags(patch.tags || []);
+    if ('location' in patch) setLocation(patch.location || '');
+  };
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 bg-black/60 backdrop-blur-sm overflow-hidden">
-      <div className="task-form-shell bg-white rounded-xl shadow-2xl w-full max-w-6xl h-[96vh] flex flex-col md:flex-row overflow-hidden animate-in fade-in zoom-in duration-200 relative">
+      <div data-mobile-section={mobileSection} className="task-form-shell bg-white rounded-xl shadow-2xl w-full max-w-6xl h-[96vh] flex flex-col md:flex-row overflow-hidden animate-in fade-in zoom-in duration-200 relative">
 
         {showTimeModal && (
             <div className="absolute inset-0 z-[110] bg-black/50 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-200">
@@ -262,6 +269,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
                     <option value={TaskStatus.COMPLETED}>COMPLETADO</option>
                 </select>
                 <div className="flex items-center gap-2">
+                    <button type="button" className="md:hidden text-xs font-semibold px-2 py-2 rounded border text-[#009696]" onClick={() => setMobileSection(value => value === 'task' ? 'details' : 'task')}>{mobileSection === 'task' ? 'Organización' : 'Volver a la tarea'}</button>
                     <div className="hidden sm:flex items-center gap-2 bg-gray-50 text-gray-400 px-3 py-1.5 rounded-lg border border-gray-100"><Clock size={14} className="text-[#009696]" /><span className="text-xs font-mono font-bold w-10 text-center">{Math.floor(sessionSeconds/60)}:{(sessionSeconds%60).toString().padStart(2,'0')}</span></div>
                     <Button type="button" onClick={handleAttemptClose} size="sm"><Check size={18} className="mr-1" /> Guardar</Button>
                     <button aria-label="Cerrar trámite" onClick={onClose} className="p-2 hover:bg-red-50 rounded-full text-gray-400 hover:text-red-500 transition-colors"><X size={20} /></button>
@@ -418,23 +426,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
                         )}
 
                         {/* OTROS TABS (WA, EMAIL, FIRMAS)... */}
-                        {footerTab === 'whatsapp' && (
-                            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xl h-[400px] flex flex-col">
-                                <div className="p-4 bg-green-600 text-white flex items-center justify-between shadow-md"><div className="flex items-center gap-3"><MessageCircle size={18} /> <span className="text-xs font-bold uppercase tracking-widest">{clientName || 'Cliente'}</span></div><div className="text-[10px] opacity-75 font-bold">WhatsApp Business</div></div>
-                                <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-[#e5ddd5] custom-scrollbar">
-                                    {whatsappMessages.map(msg => (
-                                        <div key={msg.id} className={`max-w-[80%] p-3 rounded-2xl text-xs shadow-sm relative animate-in slide-in-from-bottom-2 ${msg.direction === 'inbound' ? 'bg-white mr-auto rounded-tl-none' : 'bg-[#dcf8c6] ml-auto rounded-tr-none'}`}>
-                                            <p className="text-gray-800 mb-1 leading-relaxed">{msg.text}</p>
-                                            <div className="flex items-center justify-end gap-1 text-[9px] text-gray-500 font-bold">
-                                                {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                {msg.direction === 'outbound' && <Check size={10} className={msg.status === 'read' ? 'text-blue-500' : 'text-gray-400'} />}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="p-4 bg-white border-t border-gray-100 flex gap-3"><input type="text" placeholder="Escribe un mensaje de WhatsApp..." className="flex-1 bg-gray-50 border-none rounded-2xl px-5 py-3 text-sm focus:ring-1 focus:ring-green-500" /><button className="p-3 bg-green-600 text-white rounded-2xl shadow-lg hover:bg-green-700 transition-colors"><Send size={18} /></button></div>
-                            </div>
-                        )}
+                        {footerTab === 'whatsapp' && <WhatsAppPanel draft={whatsAppDraft} onChange={setWhatsAppDraft} clientName={clientName} taskTitle={title} />}
 
                         {footerTab === 'email' && (
                             <div className="space-y-6">
@@ -493,170 +485,12 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, onSave, ini
              </div>
         </div>
 
-        {/* AJUSTES LATERALES (Derecha) */}
-        <div className="task-form-details w-full md:w-80 bg-gray-50/50 border-l border-gray-100 flex flex-col h-full overflow-y-auto flex-shrink-0 custom-scrollbar">
-             <div className="p-6 space-y-8">
-
-                {/* SECCIÓN: RELACIÓN */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-gray-500 font-bold text-xs uppercase tracking-widest">
-                    <UserIcon size={14} className="text-gray-400" /> Relación
-                  </div>
-                  <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-5">
-                      <div>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase mb-2 block tracking-wider">CLIENTE</label>
-                          <select value={clientId} onChange={e => { const c = clients.find(cl => cl.id === e.target.value); setClientId(e.target.value); setClientName(c?.name || ''); setClientPhone(c?.phone || ''); setClientEmail(c?.email || ''); setPolicyId(''); }} className="w-full text-sm font-semibold text-gray-700 bg-gray-50 rounded-lg border-none p-3 focus:ring-1 focus:ring-[#009696] appearance-none cursor-pointer"><option value="">Seleccionar Cliente...</option>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
-                      </div>
-                      <div>
-                          <label className="text-[10px] font-bold text-gray-400 uppercase mb-2 block tracking-wider">PÓLIZA</label>
-                          <select value={policyId} onChange={e => { const p = availablePolicies.find(pl => pl.id === e.target.value); setPolicyId(e.target.value); setPolicyNumber(p?.number || ''); setInsurer(p?.insurer || ''); setBranch(p?.branch); }} className="w-full text-sm font-semibold text-gray-500 bg-gray-50 rounded-lg border-none p-3 focus:ring-1 focus:ring-[#009696] disabled:opacity-30 appearance-none cursor-pointer" disabled={!clientId}><option value="">-</option>{availablePolicies.map(p => <option key={p.id} value={p.id}>{p.insurer} - {p.number}</option>)}</select>
-                      </div>
-                  </div>
-                </div>
-
-                {/* SECCIÓN: CONTEXTO */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-gray-500 font-bold text-xs uppercase tracking-widest">
-                    <History size={14} className="text-gray-400" /> Contexto
-                  </div>
-                  <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm divide-y divide-gray-50">
-                      <div className="p-4 flex items-center justify-between group cursor-pointer hover:bg-gray-50">
-                          <div className="flex-1">
-                            <select value={module} onChange={e => { setModule(e.target.value as TaskModule); setTaskType(''); }} className="w-full text-sm font-bold text-gray-800 bg-transparent border-none p-0 focus:ring-0 cursor-pointer">{Object.keys(TASK_MODULES_MAP).map(m => <option key={m} value={m}>{m}</option>)}</select>
-                            <p className="text-[10px] text-gray-400 font-medium mt-0.5">Módulo Principal</p>
-                          </div>
-                          <ChevronRight size={14} className="text-gray-300" />
-                      </div>
-                      <div className="p-4 flex items-center justify-between group cursor-pointer hover:bg-gray-50">
-                          <div className="flex-1">
-                            <select value={taskType} onChange={e => setTaskType(e.target.value as TaskType)} className="w-full text-sm font-medium text-gray-500 bg-transparent border-none p-0 focus:ring-0 cursor-pointer"><option value="">Sin tipo específico</option>{TASK_MODULES_MAP[module].map(t => <option key={t} value={t}>{t}</option>)}</select>
-                            <p className="text-[10px] text-gray-400 font-medium mt-0.5">Tipo de trámite</p>
-                          </div>
-                          <ChevronRight size={14} className="text-gray-300" />
-                      </div>
-                  </div>
-                </div>
-
-                {/* ATRIBUTOS ADICIONALES */}
-                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm divide-y divide-gray-50">
-                    <div className="flex items-center justify-between p-4 group transition-colors hover:bg-gray-50">
-                        <div className="flex items-center gap-4 text-gray-500 font-medium"><Clock size={18} className="text-gray-400" /><span className="text-sm">Tiempo total</span></div>
-                        <span className="text-sm font-bold text-gray-900">{totalTimeSpent || 0} min</span>
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 group transition-colors hover:bg-gray-50">
-                        <div className="flex items-center gap-4 text-gray-500 font-medium"><Calendar size={18} className="text-gray-400" /><span className="text-sm">Fecha</span></div>
-                        <DatePicker label="Programar" value={date} onChange={(d) => setDate(d)} align="right" placeholder="Programar" />
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 group transition-colors hover:bg-gray-50">
-                        <div className="flex items-center gap-4 text-gray-500 font-medium"><CalendarDays size={18} className="text-gray-400" /><span className="text-sm">Fecha límite</span></div>
-                        <DatePicker label="Vencimiento" value={dueDate} recurrence={recurrence} onChange={handleDateChange} align="right" />
-                    </div>
-
-                    <div className="p-4 space-y-2 border-b border-gray-100"><label className="block text-sm text-gray-600">Recordatorio<input type="datetime-local" value={reminderDate} onChange={e => setReminderDate(e.target.value)} className="block mt-2 w-full border rounded p-2 text-xs bg-white" /></label><p className="text-xs text-gray-500">Aviso en GestiBrok con la aplicación abierta.</p></div>
-
-                    <div className="flex items-center justify-between p-4 group transition-colors hover:bg-gray-50">
-                        <div className="flex items-center gap-4 text-gray-500 font-medium"><Flag size={18} className="text-gray-400" /><span className="text-sm">Prioridad</span></div>
-                        <select value={priority} onChange={e => setPriority(e.target.value as Priority)} className="text-sm text-right font-bold text-gray-700 border-none p-0 focus:ring-0 bg-transparent cursor-pointer"><option value={Priority.VERY_HIGH}>Urgente ⚡</option><option value={Priority.HIGH}>Alta 🔴</option><option value={Priority.MEDIUM}>Media 🟡</option><option value={Priority.LOW}>Baja 🔵</option></select>
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 group transition-colors hover:bg-gray-50">
-                        <div className="flex items-center gap-4 text-gray-500 font-medium"><Zap size={18} className="text-gray-400" /><span className="text-sm">Energía</span></div>
-                        <select value={energy} onChange={e => setEnergy(e.target.value as EnergyLevel)} className="text-sm text-right font-bold text-gray-700 border-none p-0 focus:ring-0 bg-transparent cursor-pointer"><option value={EnergyLevel.HIGH}>Alta 🔋</option><option value={EnergyLevel.MEDIUM}>Media 🪫</option><option value={EnergyLevel.LOW}>Baja ⚡</option></select>
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 group transition-colors hover:bg-gray-50">
-                        <div className="flex items-center gap-4 text-gray-500 font-medium"><UserIcon size={18} className="text-gray-400" /><span className="text-sm">Supervisor</span></div>
-                        <select value={supervisorId} onChange={e => setSupervisorId(e.target.value)} className="text-sm text-right font-medium text-gray-600 border-none p-0 focus:ring-0 bg-transparent cursor-pointer"><option value="">- Nadie -</option>{MOCK_USERS.map(u => <option key={u.id} value={u.id}>{u.name.split(' ')[0]}</option>)}</select>
-                    </div>
-
-                    {/* APARTADO ETIQUETAS MEJORADO */}
-                    <div className="p-4 space-y-3 relative">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4 text-gray-500 font-medium"><Tag size={18} className="text-gray-400" /><span className="text-sm">Etiquetas</span></div>
-                          <button
-                            type="button"
-                            onClick={() => setIsTagListOpen(!isTagListOpen)}
-                            className="text-[#009696] hover:bg-[#009696]/5 p-1 rounded transition-colors"
-                          >
-                            <Plus size={14} />
-                          </button>
-                        </div>
-
-                        <div className="flex flex-wrap gap-2 min-h-[40px] p-2 bg-gray-100/30 rounded-lg border border-transparent focus-within:border-[#009696]/20 transition-all">
-                            {tags.length === 0 && !isTagListOpen && <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1"># Sin etiquetas</span>}
-                            {tags.map(tag => (
-                                <span key={tag} className="flex items-center gap-1 bg-[#009696]/10 text-[#009696] text-[10px] font-bold px-2.5 py-1 rounded-lg border border-[#009696]/20 transition-all hover:bg-[#009696]/20">{tag}<X size={10} className="cursor-pointer" onClick={() => setTags(tags.filter(t => t !== tag))} /></span>
-                            ))}
-                        </div>
-
-                        {isTagListOpen && (
-                          <div className="absolute left-0 right-0 bottom-full mb-2 bg-white border border-gray-200 rounded-xl shadow-2xl z-[60] overflow-hidden animate-in slide-in-from-bottom-2 duration-200">
-                            <div className="p-2 border-b border-gray-50 flex items-center gap-2">
-                              <Search size={14} className="text-gray-400 ml-1" />
-                              <input
-                                type="text"
-                                value={tagSearch}
-                                onChange={(e) => setTagSearch(e.target.value)}
-                                placeholder="Buscar aseguradora..."
-                                className="w-full text-xs border-none focus:ring-0 p-1"
-                                autoFocus
-                              />
-                              <button onClick={() => setIsTagListOpen(false)}><X size={14} className="text-gray-300" /></button>
-                            </div>
-                            <div className="max-h-48 overflow-y-auto p-1 custom-scrollbar">
-                              {filteredInsuranceTags.map(tagName => (
-                                <button
-                                  key={tagName}
-                                  onClick={() => addTag(tagName)}
-                                  className="w-full text-left px-3 py-2 text-xs hover:bg-[#009696]/5 rounded-lg flex items-center justify-between group"
-                                >
-                                  <span className="text-gray-700 group-hover:text-[#009696] font-medium">{tagName}</span>
-                                  <Plus size={12} className="text-gray-300 opacity-0 group-hover:opacity-100" />
-                                </button>
-                              ))}
-                              {filteredInsuranceTags.length === 0 && tagSearch && (
-                                <button
-                                  onClick={() => addTag(tagSearch)}
-                                  className="w-full text-left px-3 py-2 text-xs hover:bg-[#009696]/5 rounded-lg flex items-center gap-2"
-                                >
-                                  <span className="text-gray-400">Añadir nueva:</span>
-                                  <span className="font-bold text-[#009696]">{tagSearch}</span>
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                    </div>
-
-                    <div className="p-4 space-y-3">
-                        <div className="flex items-center gap-4 text-gray-500 font-medium mb-1"><MapPin size={18} className="text-gray-400" /><span className="text-sm">Ubicación</span></div>
-                        <LocationPicker value={location} onChange={setLocation} />
-                    </div>
-                </div>
-
-                {/* RESPONSABLES */}
-                <div className="space-y-4 pt-4 border-t border-gray-100">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Responsables Asignados</h3>
-                      <button className="text-gray-300 hover:text-[#009696]"><Plus size={14}/></button>
-                    </div>
-                    <div className="flex flex-wrap gap-3">
-                        {MOCK_USERS.map(user => {
-                            const isAssigned = assignedTo.includes(user.id);
-                            return (
-                                <button key={user.id} type="button" onClick={() => setAssignedTo(prev => prev.includes(user.id) ? prev.filter(id => id !== user.id) : [...prev, user.id])} className={`relative group transition-all hover:scale-110 ${!isAssigned ? 'opacity-30 grayscale' : 'scale-110 ring-2 ring-[#009696] ring-offset-2 rounded-full'}`} title={user.name}>
-                                    <UserAvatar userId={user.id} size="md" />
-                                    {isAssigned && <div className="absolute -top-1 -right-1 bg-[#009696] text-white rounded-full p-0.5 shadow-sm border border-white"><Check size={8} strokeWidth={4} /></div>}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-
-             </div>
-        </div>
+        <TaskDetailsSidebar
+          key={`${initialData?.id || 'new'}-${isOpen}`}
+          task={{ clientId, clientName, policyId, policyNumber, module, taskType: taskType || undefined, priority, energy, supervisorId, assignedTo, date, dueDate, recurrence, reminderDate, tags, location, totalTimeSpent }}
+          clients={clients} policies={availablePolicies} availableTags={INSURANCE_TAGS}
+          onChange={handleDetailsChange}
+        />
       </div>
     </div>
   );

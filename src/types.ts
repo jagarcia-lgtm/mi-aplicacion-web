@@ -230,6 +230,7 @@ export interface Task {
   date?: string;
   dueDate: string;
   emailDraft?: { to: string; subject: string; body: string };
+  whatsAppDraft?: { phone: string; message: string };
   reminderDate?: string; 
   priority: Priority;
   status: TaskStatus;
